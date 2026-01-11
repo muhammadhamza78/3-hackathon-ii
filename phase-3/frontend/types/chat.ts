@@ -26,6 +26,11 @@ export interface Message {
 }
 
 /**
+ * ChatMessage alias for Message (for backward compatibility)
+ */
+export type ChatMessage = Message;
+
+/**
  * Full conversation with all messages
  */
 export interface Conversation {

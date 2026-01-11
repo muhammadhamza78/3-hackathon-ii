@@ -108,5 +108,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-fetch("http://127.0.0.1:8000/api/auth/login", { ... })

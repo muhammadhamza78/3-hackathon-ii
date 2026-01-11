@@ -1,0 +1,23 @@
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-multipart>=0.0.20
+
+sqlmodel>=0.0.22
+
+passlib[bcrypt]>=1.7.4
+bcrypt==4.0.1
+python-jose[cryptography]>=3.3.0
+
+pydantic>=2.10.0
+pydantic-settings>=2.7.0
+python-dotenv>=1.0.0
+email-validator>=2.0.0
+
+psycopg[binary]>=3.2.0
+psycopg2-binary>=2.9.7
+
+# Cloud storage for profile pictures
+boto3>=1.35.0
+
+# AI Agent (Phase-3: Chatbot)
+openai>=1.0.0

@@ -190,6 +190,20 @@ async def get_task_history(
     return TaskListResponse(tasks=[TaskResponse.model_validate(task) for task in tasks])
 
 
+# ---------------------------
+# Get Task by ID
+# ---------------------------
+@router.get("/{task_id}", response_model=TaskResponse)
+async def get_task(
+    task_id: int,
+    user_id: int = Depends(get_current_user_id),
+    session: Session = Depends(get_session)
+) -> TaskResponse:
+    task = session.exec(select(Task).where(Task.id == task_id, Task.user_id == user_id)).first()
+    if not task:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+    return TaskResponse.model_validate(task)
+
 
 # ---------------------------
 # Clear Task History (Hard Delete)

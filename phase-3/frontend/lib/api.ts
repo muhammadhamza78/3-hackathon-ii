@@ -109,12 +109,10 @@ export async function loginUser(email: string, password: string): Promise<LoginR
 // ---------------- Task History ----------------
 export async function getTaskHistory() {
   const res = await apiGet("/api/tasks/history", true);
-
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err?.detail || `Failed to fetch task history (${res.status})`);
   }
-
   const data = await res.json();
   return data.tasks || []; // ensure array return
 }

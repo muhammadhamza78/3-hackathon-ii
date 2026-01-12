@@ -181,9 +181,12 @@ async def get_task_history(
     session: Session = Depends(get_session)
 ) -> TaskListResponse:
     tasks = session.exec(
-        select(Task).where(Task.user_id == user_id, Task.deleted_at.isnot(None)).order_by(Task.deleted_at.desc())
+        select(Task)
+        .where(Task.user_id == user_id, Task.deleted_at.isnot(None))
+        .order_by(Task.deleted_at.desc())
     ).all()
     return TaskListResponse(tasks=[TaskResponse.model_validate(task) for task in tasks])
+
 
 
 # ---------------------------

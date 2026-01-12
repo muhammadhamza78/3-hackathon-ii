@@ -30,6 +30,7 @@ DEFAULT_ORIGINS = [
     # "http://127.0.0.1:3000",
     # "http://localhost:3001",
     # "http://127.0.0.1:3001",
+    "https://3-hackathon-ii.vercel.app",
     "https://3-hackathon-ii-v63o.vercel.app",
 ]
 
@@ -57,6 +58,7 @@ ENV_ORIGINS = parse_cors(settings.CORS_ORIGINS)
 
 # Production allowlist (Vercel preview + prod)
 PRODUCTION_ORIGINS = [
+    "https://3-hackathon-ii.vercel.app",
     "https://3-hackathon-ii-v63o.vercel.app",
 ]
 
@@ -73,7 +75,7 @@ print("=" * 60 + "\n")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list(),
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

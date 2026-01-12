@@ -43,6 +43,57 @@ async def create_task(
 
 
 # ---------------------------
+# Clear Completed Tasks (Soft Delete)
+# ---------------------------
+@router.post("/clear-completed", status_code=status.HTTP_204_NO_CONTENT)
+async def clear_completed_tasks(
+    user_id: int = Depends(get_current_user_id),
+    session: Session = Depends(get_session)
+) -> None:
+    tasks = session.exec(
+        select(Task).where(Task.user_id == user_id, Task.status == TaskStatus.COMPLETED, Task.deleted_at.is_(None))
+    ).all()
+
+    for task in tasks:
+        task.deleted_at = datetime.now(UTC)
+        task.updated_at = datetime.now(UTC)
+        session.add(task)
+    session.commit()
+
+
+# ---------------------------
+# Task History (Deleted Tasks) - MOVED UP!
+# ---------------------------
+@router.get("/history", response_model=TaskListResponse)
+async def get_task_history(
+    user_id: int = Depends(get_current_user_id),
+    session: Session = Depends(get_session)
+) -> TaskListResponse:
+    tasks = session.exec(
+        select(Task)
+        .where(Task.user_id == user_id, Task.deleted_at.isnot(None))
+        .order_by(Task.deleted_at.desc())
+    ).all()
+    return TaskListResponse(tasks=[TaskResponse.model_validate(task) for task in tasks])
+
+
+# ---------------------------
+# Clear Task History (Hard Delete) - MOVED UP!
+# ---------------------------
+@router.delete("/history", status_code=status.HTTP_204_NO_CONTENT)
+async def clear_task_history(
+    user_id: int = Depends(get_current_user_id),
+    session: Session = Depends(get_session)
+) -> None:
+    tasks = session.exec(
+        select(Task).where(Task.user_id == user_id, Task.deleted_at.isnot(None))
+    ).all()
+    for task in tasks:
+        session.delete(task)
+    session.commit()
+
+
+# ---------------------------
 # List Tasks
 # ---------------------------
 @router.get("", response_model=TaskListResponse)
@@ -153,69 +204,3 @@ async def restore_task(
     session.commit()
     session.refresh(task)
     return TaskResponse.model_validate(task)
-
-
-# ---------------------------
-# Clear Completed Tasks (Soft Delete)
-# ---------------------------
-@router.post("/clear-completed", status_code=status.HTTP_204_NO_CONTENT)
-async def clear_completed_tasks(
-    user_id: int = Depends(get_current_user_id),
-    session: Session = Depends(get_session)
-) -> None:
-    tasks = session.exec(
-        select(Task).where(Task.user_id == user_id, Task.status == TaskStatus.COMPLETED, Task.deleted_at.is_(None))
-    ).all()
-
-    for task in tasks:
-        task.deleted_at = datetime.now(UTC)
-        task.updated_at = datetime.now(UTC)
-        session.add(task)
-    session.commit()
-
-
-# ---------------------------
-# Task History (Deleted Tasks)
-# ---------------------------
-@router.get("/history", response_model=TaskListResponse)
-async def get_task_history(
-    user_id: int = Depends(get_current_user_id),
-    session: Session = Depends(get_session)
-) -> TaskListResponse:
-    tasks = session.exec(
-        select(Task)
-        .where(Task.user_id == user_id, Task.deleted_at.isnot(None))
-        .order_by(Task.deleted_at.desc())
-    ).all()
-    return TaskListResponse(tasks=[TaskResponse.model_validate(task) for task in tasks])
-
-
-# ---------------------------
-# Get Task by ID
-# ---------------------------
-@router.get("/{task_id}", response_model=TaskResponse)
-async def get_task(
-    task_id: int,
-    user_id: int = Depends(get_current_user_id),
-    session: Session = Depends(get_session)
-) -> TaskResponse:
-    task = session.exec(select(Task).where(Task.id == task_id, Task.user_id == user_id)).first()
-    if not task:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
-    return TaskResponse.model_validate(task)
-
-
-# ---------------------------
-# Clear Task History (Hard Delete)
-# ---------------------------
-@router.delete("/history", status_code=status.HTTP_204_NO_CONTENT)
-async def clear_task_history(
-    user_id: int = Depends(get_current_user_id),
-    session: Session = Depends(get_session)
-) -> None:
-    tasks = session.exec(
-        select(Task).where(Task.user_id == user_id, Task.deleted_at.isnot(None))
-    ).all()
-    for task in tasks:
-        session.delete(task)
-    session.commit()

@@ -642,16 +642,42 @@ async def clear_completed_tasks(
 # ---------------------------
 # Task History (Deleted Tasks)
 # ---------------------------
-@router.get("/history", response_model=TaskListResponse)
-async def get_task_history(
-    user_id: int = Depends(get_current_user_id),
-    session: Session = Depends(get_session)
-) -> TaskListResponse:
-    tasks = session.exec(
-        select(Task).where(Task.user_id == user_id, Task.deleted_at.isnot(None)).order_by(Task.deleted_at.desc())
-    ).all()
-    return TaskListResponse(tasks=[TaskResponse.model_validate(task) for task in tasks])
+# @router.get("/history", response_model=TaskListResponse)
+# async def get_task_history(
+#     user_id: int = Depends(get_current_user_id),
+#     session: Session = Depends(get_session)
+# ) -> TaskListResponse:
+#     tasks = session.exec(
+#         select(Task).where(Task.user_id == user_id, Task.deleted_at.isnot(None)).order_by(Task.deleted_at.desc())
+#     ).all()
+#     return TaskListResponse(tasks=[TaskResponse.model_validate(task) for task in tasks])
 
+
+
+
+
+async function fetchTaskHistory(jwtToken) {
+  const response = await fetch("https://3-hackathon-ii-production.up.railway.app/api/tasks/history", {
+    method: "GET",
+    headers: {
+      "Authorization": `Bearer ${jwtToken}`,
+      "Content-Type": "application/json"
+    }
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Failed to fetch history: ${response.status} - ${errText}`);
+  }
+
+  const data = await response.json();
+  return data.tasks; // Array of deleted tasks
+}
+
+// Usage
+fetchTaskHistory("YOUR_VALID_JWT_TOKEN")
+  .then(tasks => console.log(tasks))
+  .catch(err => console.error(err));
 
 # ---------------------------
 # Clear Task History (Hard Delete)

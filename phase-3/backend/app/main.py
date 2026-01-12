@@ -21,20 +21,22 @@ app = FastAPI(
 )
 
 
+
+
+
 # -------------------------------------------------
-# 🔐 CORS Configuration
+# 🔐 CORS Configuration (Updated)
 # -------------------------------------------------
 
-DEFAULT_ORIGINS = [
-    # "http://localhost:3000",
-    # "http://127.0.0.1:3000",
-    # "http://localhost:3001",
-    # "http://127.0.0.1:3001",
+from fastapi.middleware.cors import CORSMiddleware
+
+# Hardcode allowed frontend origins (Vercel)
+ALLOWED_ORIGINS = [
     "https://3-hackathon-ii.vercel.app",
     "https://3-hackathon-ii-v63o.vercel.app",
 ]
 
-# Parse env CORS
+# Add any additional origins from .env
 def parse_cors(env_value: str | list | None):
     if not env_value:
         return []
@@ -43,43 +45,39 @@ def parse_cors(env_value: str | list | None):
     if isinstance(env_value, str):
         env_value = env_value.strip()
         if env_value.startswith("["):
-            # JSON list format
+            # JSON list
             import json
             try:
                 return json.loads(env_value)
             except:
                 pass
-        # CSV format
         return [v.strip() for v in env_value.split(",")]
     return []
 
-# Load origins from env
 ENV_ORIGINS = parse_cors(settings.CORS_ORIGINS)
-
-# Production allowlist (Vercel preview + prod)
-PRODUCTION_ORIGINS = [
-    "https://3-hackathon-ii.vercel.app",
-    "https://3-hackathon-ii-v63o.vercel.app",
-]
-
-
-ALLOWED_ORIGINS = list(set(DEFAULT_ORIGINS + ENV_ORIGINS + PRODUCTION_ORIGINS))
+ALLOWED_ORIGINS = list(set(ALLOWED_ORIGINS + ENV_ORIGINS))
 
 print("\n" + "=" * 60)
 print("🌐 CORS CONFIGURATION ACTIVE")
-print("=" * 60)
 print("Allowed Origins:")
 for o in ALLOWED_ORIGINS:
     print("  -", o)
 print("=" * 60 + "\n")
 
+# Apply CORSMiddleware BEFORE including routers
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=ALLOWED_ORIGINS,   # exact frontend URLs
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],             # allow GET, POST, OPTIONS, etc.
+    allow_headers=["*"],             # allow all headers including Content-Type
 )
+
+
+
+
+
+
 
 
 # -------------------------------------------------
@@ -166,3 +164,65 @@ async def health():
         return {"status": "ok", "db": "connected", "cors": "enabled"}
     except Exception as e:
         return {"status": "error", "db": "disconnected", "error": str(e)}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# -------------------------------------------------
+# 🔐 CORS Configuration (Updated)
+# -------------------------------------------------
+
+from fastapi.middleware.cors import CORSMiddleware
+
+# Hardcode allowed frontend origins (Vercel)
+ALLOWED_ORIGINS = [
+    "https://3-hackathon-ii.vercel.app",
+    "https://3-hackathon-ii-v63o.vercel.app",
+]
+
+# Add any additional origins from .env
+def parse_cors(env_value: str | list | None):
+    if not env_value:
+        return []
+    if isinstance(env_value, list):
+        return env_value
+    if isinstance(env_value, str):
+        env_value = env_value.strip()
+        if env_value.startswith("["):
+            # JSON list
+            import json
+            try:
+                return json.loads(env_value)
+            except:
+                pass
+        return [v.strip() for v in env_value.split(",")]
+    return []
+
+ENV_ORIGINS = parse_cors(settings.CORS_ORIGINS)
+ALLOWED_ORIGINS = list(set(ALLOWED_ORIGINS + ENV_ORIGINS))
+
+print("\n" + "=" * 60)
+print("🌐 CORS CONFIGURATION ACTIVE")
+print("Allowed Origins:")
+for o in ALLOWED_ORIGINS:
+    print("  -", o)
+print("=" * 60 + "\n")
+
+# Apply CORSMiddleware BEFORE including routers
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,   # exact frontend URLs
+    allow_credentials=True,
+    allow_methods=["*"],             # allow GET, POST, OPTIONS, etc.
+    allow_headers=["*"],             # allow all headers including Content-Type
+)

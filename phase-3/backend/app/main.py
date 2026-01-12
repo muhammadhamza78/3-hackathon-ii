@@ -113,7 +113,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(tasks.router, prefix="/api/tasks", tags=["Tasks"])
 app.include_router(profile.router, prefix="/api/v1", tags=["Profile"])
-app.include_router(chat.router, prefix="/api/v1", tags=["Chat"])
+app.include_router(chat.router, prefix="/api/v1/chat", tags=["Chat"])
+
 
 print("✅ Routers Registered:")
 print("   - Auth: /api/auth")

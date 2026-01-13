@@ -300,7 +300,6 @@
 
 
 
-
 import os
 import requests
 import re
@@ -653,17 +652,19 @@ Always include the task title/ID in your response so I can identify which task t
         
         # Remove action keywords
         if action == "add":
-            for phrase in ["add task to", "create task to", "remind me to", "add task", "create task", "new task", "add"]:
+            for phrase in ["add task to", "create task to", "remind me to", "add task", "create task", "new task"]:
                 title = title.replace(phrase, "")
         
         # Remove status/priority words
         for word in ["on progress", "in progress", "high priority", "low priority", "completed", "pending"]:
             title = title.replace(word, "")
         
-        # Clean up
+        # Remove quotes and extra spaces
+        title = title.replace('"', '').replace("'", "")
+        title = ' '.join(title.split())  # Remove extra spaces
         title = title.strip()
         
-        # Capitalize
+        # Capitalize first letter
         if title:
             title = title[0].upper() + title[1:]
         else:

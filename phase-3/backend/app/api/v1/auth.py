@@ -19,8 +19,7 @@ from app.auth.jwt import create_access_token
 from app.config import settings
 
 
-# ❌ REMOVED prefix="/api/auth"
-router = APIRouter(tags=["Authentication"])
+app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 
 
 @router.post(

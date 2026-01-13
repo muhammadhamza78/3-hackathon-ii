@@ -299,7 +299,6 @@
 
 
 
-
 import os
 import requests
 import re
@@ -324,36 +323,7 @@ RULES:
 5. Extract details from user's message - don't ask unnecessary questions
 6. Respond concisely - NO long explanations
 
-EXAMPLES:
-
-User: "add task to read book"
-Action: ADD_TASK
-Response: "✅ Task added: Read book"
-
-User: "edit task read book to learn python"
-Action: UPDATE_TASK
-Response: "✅ Task updated: Learn python"
-
-User: "delete task read book"
-Action: DELETE_TASK
-Response: "🗑️ Task deleted: Read book"
-
-User: "complete task read book"
-Action: COMPLETE_TASK
-Response: "✅ Task completed: Read book"
-
-User: "show my tasks"
-Action: LIST_TASKS
-Response: Show tasks list
-
-DETECT INTENT from keywords:
-- add, create, new, remind → ADD
-- edit, update, change, modify, rename → UPDATE
-- delete, remove, cancel → DELETE
-- complete, done, finish, mark done → COMPLETE
-- show, list, my tasks → LIST
-
-Always include the task title/ID in your response so I can identify which task to act on."""
+Be direct and helpful!"""
 
     def chat(self, session: Session, user_id: int, message: str, conversation_history: list) -> str:
         """Process user message and take direct action"""
@@ -364,46 +334,42 @@ Always include the task title/ID in your response so I can identify which task t
         print(f"   Message: {message}")
         print(f"{'='*60}\n")
         
-        # Detect intent directly from message
+        # Detect intent
         intent = self._detect_intent(message)
         print(f"🎯 Detected Intent: {intent}")
         
-        # Execute action based on intent
-        if intent == "ADD":
-            return self._add_task(session, user_id, message)
-        elif intent == "EDIT":
-            return self._edit_task(session, user_id, message)
-        elif intent == "DELETE":
-            return self._delete_task(session, user_id, message)
-        elif intent == "COMPLETE":
-            return self._complete_task(session, user_id, message)
-        elif intent == "LIST":
-            return self._list_tasks(session, user_id)
-        else:
-            # For general chat, use AI
-            return self._general_chat(message, conversation_history)
+        try:
+            # Execute action
+            if intent == "ADD":
+                return self._add_task(session, user_id, message)
+            elif intent == "EDIT":
+                return self._edit_task(session, user_id, message)
+            elif intent == "DELETE":
+                return self._delete_task(session, user_id, message)
+            elif intent == "COMPLETE":
+                return self._complete_task(session, user_id, message)
+            elif intent == "LIST":
+                return self._list_tasks(session, user_id)
+            else:
+                return self._general_chat(message, conversation_history)
+        except Exception as e:
+            print(f"❌ Error: {e}")
+            import traceback
+            traceback.print_exc()
+            return f"Sorry, I encountered an error: {str(e)}"
     
     def _detect_intent(self, message: str) -> str:
-        """Detect user intent from message keywords"""
+        """Detect user intent"""
         msg = message.lower()
         
-        # Check for edit/update first (more specific)
         if any(word in msg for word in ["edit", "update", "change", "modify", "rename"]):
             return "EDIT"
-        
-        # Check for delete
         if any(word in msg for word in ["delete", "remove", "cancel"]):
             return "DELETE"
-        
-        # Check for complete
-        if any(word in msg for word in ["complete", "done", "finish", "mark done", "mark as done"]):
+        if any(word in msg for word in ["complete", "done", "finish", "mark done"]):
             return "COMPLETE"
-        
-        # Check for list
-        if any(word in msg for word in ["list", "show", "my tasks", "what tasks", "all tasks"]):
+        if any(word in msg for word in ["list", "show", "my tasks", "all tasks"]):
             return "LIST"
-        
-        # Check for add (should be last as it's most generic)
         if any(word in msg for word in ["add", "create", "new", "remind"]):
             return "ADD"
         
@@ -413,20 +379,24 @@ Always include the task title/ID in your response so I can identify which task t
         """Add a new task"""
         print("➕ Adding task...")
         
-        # Extract task details
-        title = self._extract_task_title(message, action="add")
+        title = self._extract_task_title(message)
         status = self._extract_status(message)
         priority = self._extract_priority(message)
         
-        # Create task
-        new_task = Task(
-            user_id=user_id,
-            title=title,
-            description="",
-            status=status,
-            priority=priority,
-            is_deleted=False
-        )
+        # Create task without is_deleted field
+        task_data = {
+            "user_id": user_id,
+            "title": title,
+            "description": "",
+            "status": status,
+            "priority": priority
+        }
+        
+        # Only add is_deleted if the field exists
+        try:
+            new_task = Task(**task_data, is_deleted=False)
+        except:
+            new_task = Task(**task_data)
         
         session.add(new_task)
         session.commit()
@@ -434,31 +404,24 @@ Always include the task title/ID in your response so I can identify which task t
         
         print(f"✅ Task created: {title} (ID: {new_task.id})")
         
-        # Status emoji
         status_emoji = "🔄" if status == "in_progress" else "📋"
-        priority_text = f" (Priority: {priority.title()})" if priority != "medium" else ""
-        
-        return f"✅ Task added: {title} {status_emoji}{priority_text}"
+        return f"✅ Task added: {title} {status_emoji}"
     
     def _edit_task(self, session: Session, user_id: int, message: str) -> str:
-        """Edit an existing task"""
+        """Edit existing task"""
         print("✏️ Editing task...")
         
-        # Try to find which task to edit
-        # Pattern: "edit [old_title] to [new_title]"
-        
-        # First, get all user's tasks
+        # Get all tasks (without is_deleted filter)
         tasks = session.exec(
-            select(Task).where(Task.user_id == user_id, Task.is_deleted == False)
+            select(Task).where(Task.user_id == user_id)
         ).all()
         
         if not tasks:
-            return "❌ No tasks found to edit"
+            return "❌ No tasks found"
         
         # Extract old and new titles
         msg = message.lower()
         
-        # Try pattern: "edit X to Y"
         edit_patterns = [
             r'edit\s+(?:task\s+)?(.+?)\s+to\s+(.+)',
             r'update\s+(?:task\s+)?(.+?)\s+to\s+(.+)',
@@ -477,9 +440,9 @@ Always include the task title/ID in your response so I can identify which task t
                 break
         
         if not old_title or not new_title:
-            return "❌ Please specify: 'edit [old task name] to [new task name]'"
+            return "❌ Please use format: 'edit [old name] to [new name]'"
         
-        # Find matching task (fuzzy match)
+        # Find matching task
         matching_task = None
         for task in tasks:
             if old_title in task.title.lower() or task.title.lower() in old_title:
@@ -487,114 +450,108 @@ Always include the task title/ID in your response so I can identify which task t
                 break
         
         if not matching_task:
-            return f"❌ Task '{old_title}' not found. Use 'show my tasks' to see all tasks."
+            return f"❌ Task '{old_title}' not found"
         
-        # Update task title
-        old_task_title = matching_task.title
+        # Update title
         matching_task.title = new_title.capitalize()
-        
         session.commit()
         
-        print(f"✅ Task updated: {old_task_title} → {new_title}")
-        
+        print(f"✅ Task updated to: {new_title}")
         return f"✅ Task updated: {new_title}"
     
     def _delete_task(self, session: Session, user_id: int, message: str) -> str:
-        """Delete a task"""
+        """Delete task"""
         print("🗑️ Deleting task...")
         
-        # Get all tasks
         tasks = session.exec(
-            select(Task).where(Task.user_id == user_id, Task.is_deleted == False)
+            select(Task).where(Task.user_id == user_id)
         ).all()
         
         if not tasks:
-            return "❌ No tasks found to delete"
+            return "❌ No tasks found"
         
-        # Extract task title to delete
+        # Extract task name
         msg = message.lower()
-        
-        # Remove delete keywords
-        title_to_delete = msg
         for word in ["delete", "remove", "cancel", "task"]:
-            title_to_delete = title_to_delete.replace(word, "")
-        title_to_delete = title_to_delete.strip()
+            msg = msg.replace(word, "")
+        title = msg.strip()
         
-        if not title_to_delete:
-            return "❌ Please specify which task to delete (e.g., 'delete read book')"
+        if not title:
+            return "❌ Please specify task to delete"
         
-        # Find matching task
+        # Find task
         matching_task = None
         for task in tasks:
-            if title_to_delete in task.title.lower() or task.title.lower() in title_to_delete:
+            if title in task.title.lower() or task.title.lower() in title:
                 matching_task = task
                 break
         
         if not matching_task:
-            return f"❌ Task '{title_to_delete}' not found"
+            return f"❌ Task '{title}' not found"
         
-        # Soft delete
+        # Delete task (hard delete if is_deleted doesn't exist)
         task_title = matching_task.title
-        matching_task.is_deleted = True
-        session.commit()
+        
+        try:
+            # Try soft delete first
+            matching_task.is_deleted = True
+            session.commit()
+        except:
+            # If is_deleted doesn't exist, hard delete
+            session.delete(matching_task)
+            session.commit()
         
         print(f"✅ Task deleted: {task_title}")
-        
         return f"🗑️ Task deleted: {task_title}"
     
     def _complete_task(self, session: Session, user_id: int, message: str) -> str:
-        """Mark task as completed"""
+        """Complete task"""
         print("✅ Completing task...")
         
-        # Get all tasks
         tasks = session.exec(
-            select(Task).where(Task.user_id == user_id, Task.is_deleted == False)
+            select(Task).where(Task.user_id == user_id)
         ).all()
         
         if not tasks:
-            return "❌ No tasks found to complete"
+            return "❌ No tasks found"
         
-        # Extract task title
+        # Extract task name
         msg = message.lower()
-        
-        # Remove complete keywords
-        title_to_complete = msg
         for word in ["complete", "done", "finish", "mark", "as", "task"]:
-            title_to_complete = title_to_complete.replace(word, "")
-        title_to_complete = title_to_complete.strip()
+            msg = msg.replace(word, "")
+        title = msg.strip()
         
-        if not title_to_complete:
-            return "❌ Please specify which task to complete (e.g., 'complete read book')"
+        if not title:
+            return "❌ Please specify task to complete"
         
-        # Find matching task
+        # Find task
         matching_task = None
         for task in tasks:
-            if title_to_complete in task.title.lower() or task.title.lower() in title_to_complete:
+            if title in task.title.lower() or task.title.lower() in title:
                 matching_task = task
                 break
         
         if not matching_task:
-            return f"❌ Task '{title_to_complete}' not found"
+            return f"❌ Task '{title}' not found"
         
-        # Mark as completed
+        # Mark completed
         task_title = matching_task.title
         matching_task.status = "completed"
         session.commit()
         
         print(f"✅ Task completed: {task_title}")
-        
         return f"✅ Task completed: {task_title}"
     
     def _list_tasks(self, session: Session, user_id: int) -> str:
-        """List all tasks"""
+        """List tasks"""
         print("📋 Listing tasks...")
         
         tasks = session.exec(
-            select(Task).where(Task.user_id == user_id, Task.is_deleted == False)
+            select(Task).where(Task.user_id == user_id)
         ).all()
         
         if not tasks:
-            return "📝 You don't have any tasks yet. Add one to get started!"
+            return "📝 No tasks yet. Add one to get started!"
         
         response = "📋 Your Tasks:\n\n"
         for task in tasks[:10]:
@@ -607,17 +564,14 @@ Always include the task title/ID in your response so I can identify which task t
             response += f"{status_emoji} {task.title}\n"
         
         if len(tasks) > 10:
-            response += f"\n...and {len(tasks) - 10} more tasks"
+            response += f"\n...and {len(tasks) - 10} more"
         
         return response
     
     def _general_chat(self, message: str, conversation_history: list) -> str:
-        """Handle general chat with AI"""
-        print("💬 General chat...")
-        
+        """General chat"""
         messages = [{"role": "system", "content": self.system_prompt}]
         
-        # Add history
         for msg in conversation_history[-5:]:
             messages.append({
                 "role": msg.get("role", "user"),
@@ -644,27 +598,26 @@ Always include the task title/ID in your response so I can identify which task t
             data = resp.json()
             return data["choices"][0]["message"]["content"]
         except Exception as e:
-            return f"Sorry, I encountered an error: {str(e)}"
+            return f"Sorry, error: {str(e)}"
     
-    def _extract_task_title(self, message: str, action: str = "add") -> str:
-        """Extract task title from message"""
+    def _extract_task_title(self, message: str) -> str:
+        """Extract clean task title"""
         title = message.lower()
         
-        # Remove action keywords
-        if action == "add":
-            for phrase in ["add task to", "create task to", "remind me to", "add task", "create task", "new task"]:
-                title = title.replace(phrase, "")
+        # Remove keywords
+        for phrase in ["add task to", "create task to", "remind me to", "add task", "create task", "new task", "add", "create"]:
+            title = title.replace(phrase, "")
         
-        # Remove status/priority words
+        # Remove status/priority
         for word in ["on progress", "in progress", "high priority", "low priority", "completed", "pending"]:
             title = title.replace(word, "")
         
-        # Remove quotes and extra spaces
+        # Clean quotes and spaces
         title = title.replace('"', '').replace("'", "")
-        title = ' '.join(title.split())  # Remove extra spaces
+        title = ' '.join(title.split())
         title = title.strip()
         
-        # Capitalize first letter
+        # Capitalize
         if title:
             title = title[0].upper() + title[1:]
         else:
@@ -673,23 +626,19 @@ Always include the task title/ID in your response so I can identify which task t
         return title
     
     def _extract_status(self, message: str) -> str:
-        """Extract status from message"""
+        """Extract status"""
         msg = message.lower()
-        
         if "in progress" in msg or "on progress" in msg:
             return "in_progress"
-        elif "completed" in msg or "done" in msg:
+        elif "completed" in msg:
             return "completed"
-        else:
-            return "pending"
+        return "pending"
     
     def _extract_priority(self, message: str) -> str:
-        """Extract priority from message"""
+        """Extract priority"""
         msg = message.lower()
-        
         if "high priority" in msg or "urgent" in msg:
             return "high"
         elif "low priority" in msg:
             return "low"
-        else:
-            return "medium"
+        return "medium"

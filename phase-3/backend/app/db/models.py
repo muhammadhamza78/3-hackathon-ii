@@ -4,17 +4,19 @@ from typing import Optional
 import sqlalchemy as sa
 
 
-class User(SQLModel, table=True):
-    """User model for authentication and profile management"""
+class Task(SQLModel, table=True):
+    """Task model for todo items"""
     
-    __tablename__ = "users"
+    __tablename__ = "tasks"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    name: str = Field(max_length=255)
-    email: str = Field(unique=True, index=True, max_length=255)
-    hashed_password: str = Field(max_length=255)
-    profile_picture: Optional[str] = Field(default=None, max_length=500)
-    is_active: bool = Field(default=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    title: str = Field(max_length=500)
+    description: Optional[str] = Field(default="", max_length=2000)
+    status: str = Field(default="pending", max_length=50)  # pending, in_progress, completed
+    priority: str = Field(default="medium", max_length=50)  # low, medium, high
+    is_deleted: bool = Field(default=False)  # ✅ Soft delete flag
+    due_date: Optional[datetime] = Field(default=None)
     created_at: datetime = Field(
         default_factory=datetime.utcnow,
         sa_column=Column(sa.DateTime(timezone=True), nullable=False)

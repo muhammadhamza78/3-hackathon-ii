@@ -1,5 +1,5 @@
 // lib/api.ts
-const API_BASE = process.env.NEXT_PUBLIC_API_URL;
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://3-hackathon-ii-production.up.railway.app";
 
 // ---------------- GET ----------------
 export async function apiGet(url: string, requiresAuth: boolean = true): Promise<Response> {

@@ -25,15 +25,17 @@ app = FastAPI(
 # 🔐 CORS Configuration
 # -------------------------------------------------
 
-# Hardcode allowed frontend origins
+# Allowed frontend origins (production + development)
 ALLOWED_ORIGINS = [
+    # Production Vercel URLs
     "https://3-hackathon-ii.vercel.app",
     "https://3-hackathon-ii-v63o.vercel.app",
-    "http://localhost:3000",  # Local development
+    # Local development
+    "http://localhost:3000",
     "http://localhost:3001",
 ]
 
-# Add any additional origins from .env
+# Add any additional origins from environment variables
 def parse_cors(env_value: str | list | None):
     if not env_value:
         return []
@@ -42,32 +44,34 @@ def parse_cors(env_value: str | list | None):
     if isinstance(env_value, str):
         env_value = env_value.strip()
         if env_value.startswith("["):
-            # JSON list
+            # JSON list format
             import json
             try:
                 return json.loads(env_value)
             except:
                 pass
-        return [v.strip() for v in env_value.split(",")]
+        # Comma-separated format
+        return [v.strip() for v in env_value.split(",") if v.strip()]
     return []
 
-ENV_ORIGINS = parse_cors(settings.CORS_ORIGINS)
+# Merge environment origins with hardcoded ones
+ENV_ORIGINS = parse_cors(getattr(settings, 'CORS_ORIGINS', None))
 ALLOWED_ORIGINS = list(set(ALLOWED_ORIGINS + ENV_ORIGINS))
 
 print("\n" + "=" * 60)
 print("🌐 CORS CONFIGURATION ACTIVE")
 print("Allowed Origins:")
-for o in ALLOWED_ORIGINS:
-    print("  -", o)
+for origin in ALLOWED_ORIGINS:
+    print(f"  ✓ {origin}")
 print("=" * 60 + "\n")
 
-# Apply CORSMiddleware BEFORE including routers
+# Apply CORS middleware BEFORE including routers
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,   # exact frontend URLs
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],             # allow GET, POST, OPTIONS, etc.
-    allow_headers=["*"],             # allow all headers including Content-Type
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -82,7 +86,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     origin = request.headers.get("origin", "")
     headers = {}
 
-    # Return CORS headers in errors for frontend compatibility
+    # Add CORS headers to error responses
     if origin in ALLOWED_ORIGINS:
         headers = {
             "Access-Control-Allow-Origin": origin,
@@ -104,12 +108,11 @@ app.include_router(tasks.router, prefix="/api/tasks", tags=["Tasks"])
 app.include_router(profile.router, prefix="/api/v1", tags=["Profile"])
 app.include_router(chat.router, prefix="/api/v1", tags=["Chat"])
 
-
 print("✅ Routers Registered:")
-print("   - Auth: /api/auth")
-print("   - Tasks: /api/tasks")
-print("   - Profile: /api/v1/profile")
-print("   - Chat: /api/v1/chat\n")
+print("   → Auth: /api/auth")
+print("   → Tasks: /api/tasks")
+print("   → Profile: /api/v1/profile")
+print("   → Chat: /api/v1/chat\n")
 
 
 # -------------------------------------------------
@@ -117,9 +120,9 @@ print("   - Chat: /api/v1/chat\n")
 # -------------------------------------------------
 @app.on_event("startup")
 async def startup_event():
-    print("🚀 FastAPI Starting...")
-    if settings.DEBUG:
-        print("🔧 Debug ON → Initializing DB")
+    print("🚀 FastAPI Application Starting...")
+    if getattr(settings, 'DEBUG', False):
+        print("🔧 Debug Mode: ON → Initializing Database")
         init_db()
     print("✨ Startup Complete\n")
 
@@ -133,8 +136,10 @@ async def root():
         "message": "Task Management API",
         "version": "1.0.0",
         "status": "running",
+        "backend_url": "https://3-hackathon-ii-production.up.railway.app",
         "docs": "/docs",
-        "api": {
+        "redoc": "/redoc",
+        "endpoints": {
             "auth": "/api/auth",
             "tasks": "/api/tasks",
             "profile": "/api/v1/profile",
@@ -151,6 +156,15 @@ async def health():
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
-        return {"status": "ok", "db": "connected", "cors": "enabled"}
+        return {
+            "status": "healthy",
+            "database": "connected",
+            "cors": "enabled",
+            "version": "1.0.0"
+        }
     except Exception as e:
-        return {"status": "error", "db": "disconnected", "error": str(e)}
+        return {
+            "status": "unhealthy",
+            "database": "disconnected",
+            "error": str(e)
+        }
